@@ -5,10 +5,9 @@ import numpy as np
 
 app = Flask(__name__)
 
-# Load the Hugging Face model and tokenizer
-model_name = "bhadresh-savani/bert-base-go-emotion"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=True)
+# Initialize model and tokenizer variables
+model = None
+tokenizer = None
 
 # Define emotion labels (for 28 emotion classes)
 emotion_labels = [
@@ -19,8 +18,18 @@ emotion_labels = [
     "realization", "relief", "remorse", "sadness", "surprise", "neutral"
 ]
 
+# Function to load the model and tokenizer lazily
+def load_model_and_tokenizer():
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        model_name = "bhadresh-savani/bert-base-go-emotion"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = TFAutoModelForSequenceClassification.from_pretrained(model_name, from_pt=True)
+
 # Function to process the input and make a prediction
 def predict_emotion(text):
+    load_model_and_tokenizer()  # Ensure the model and tokenizer are loaded
+
     inputs = tokenizer(text, return_tensors="tf", max_length=512, truncation=True, padding="max_length")
     logits = model(inputs["input_ids"]).logits
     probabilities = tf.nn.softmax(logits, axis=-1)
@@ -32,7 +41,6 @@ def predict_emotion(text):
     predicted_class = tf.argmax(probabilities, axis=-1).numpy()[0]
 
     return probabilities_percentage[0], predicted_class  # Return probabilities and predicted class
-
 
 # Define a route for prediction
 @app.route('/predict', methods=['POST'])
@@ -64,4 +72,4 @@ def predict():
     return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(debug=true)
+    app.run(debug=True)
